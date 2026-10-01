@@ -48,4 +48,9 @@ export class MisCompras {
   subtotalLinea(cantidad: number, precio: number) {
     return cantidad * precio;
   }
+
+  // Los numeric de Postgres llegan como 466.2: se muestran con dos decimales.
+  dinero(valor: number) {
+    return Number(valor).toFixed(2);
+  }
 }

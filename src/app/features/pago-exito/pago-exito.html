@@ -63,11 +63,11 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm text-slate-800 truncate">{{ linea.producto?.nombre || 'Jersey' }}</p>
               <p class="text-xs text-slate-500">
-                {{ linea.cantidad }} x S/ {{ linea.precio_unitario }}
+                {{ linea.cantidad }} x S/ {{ dinero(linea.precio_unitario) }}
               </p>
             </div>
             <p class="text-sm font-medium text-slate-800">
-              S/ {{ subtotalLinea(linea.cantidad, linea.precio_unitario).toFixed(2) }}
+              S/ {{ dinero(subtotalLinea(linea.cantidad, linea.precio_unitario)) }}
             </p>
           </div>
         }
@@ -75,7 +75,7 @@
 
       <div class="mt-4 flex justify-between items-center">
         <span class="text-slate-600">Total pagado</span>
-        <span class="text-xl font-bold text-emerald-600">S/ {{ venta()!.total }}</span>
+        <span class="text-xl font-bold text-emerald-600">S/ {{ dinero(venta()!.total) }}</span>
       </div>
 
       <p class="mt-4 text-xs text-slate-500">Se envia a: {{ venta()!.direccion }}</p>
