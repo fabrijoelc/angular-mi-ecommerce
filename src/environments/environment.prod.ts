@@ -8,5 +8,5 @@ export const environment = {
   supabaseKey: 'sb_publishable_3e9_iVE1wqHvEtyFNPXlGw__f2T496x',
   // La site key del captcha es publica y por eso puede ir aqui. La secret
   // key solo existe en los secrets de Supabase.
-  turnstileSiteKey: '0x4AAAAAAFLS9rzC4M6c_Blh',
+  turnstileSiteKey: '1x00000000000000000000AA',
 };
