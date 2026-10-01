@@ -80,11 +80,9 @@ export class Checkout {
   }
 
   alGenerarToken(token: string) {
+    // El mensaje de error no se limpia aqui: al reiniciar el widget llega
+    // un token nuevo enseguida y borraria el aviso antes de leerlo.
     this.captchaToken.set(token);
-
-    if (token) {
-      this.errorPago.set('');
-    }
   }
 
   alFallarCaptcha() {
