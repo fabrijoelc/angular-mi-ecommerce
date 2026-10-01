@@ -28,6 +28,23 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/checkout/checkout').then((m) => m.Checkout),
   },
+  // Resultado del pago: tambien protegidas, no tiene sentido verlas sin sesion.
+  {
+    path: 'pago/exito',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/pago-exito/pago-exito').then((m) => m.PagoExito),
+  },
+  {
+    path: 'pago/cancelado',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/pago-cancelado/pago-cancelado').then((m) => m.PagoCancelado),
+  },
+  {
+    path: 'mis-compras',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/mis-compras/mis-compras').then((m) => m.MisCompras),
+  },
   {
     path: 'login',
     loadComponent: () => import('./pages/login/login').then((m) => m.Login),

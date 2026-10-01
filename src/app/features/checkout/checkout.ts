@@ -1,51 +1,38 @@
-import { Component, inject, signal } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { Component, inject, signal, viewChild } from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CarritoService } from '../../services/carrito-service';
 import { AuthService } from '../../services/auth-service';
 import { ProductoService } from '../../services/producto-service';
 import { NotificacionService } from '../../services/notificacion-service';
+import { VentaService } from '../../services/venta-service';
 import { stockDisponibleValidator } from '../../core/validators/stock.validator';
-
-// Validador de grupo sobre "pago": el monto tecleado tiene que coincidir
-// con el total real del carrito.
-function montoCoincideConTotal(totalEsperado: () => number): ValidatorFn {
-  return (grupo: AbstractControl): ValidationErrors | null => {
-    const monto = Number(grupo.get('montoIngresado')?.value);
-    const total = Number(totalEsperado().toFixed(2));
-
-    if (!monto) {
-      return null;
-    }
-
-    return Math.abs(monto - total) < 0.01 ? null : { montoNoCoincide: true };
-  };
-}
+import { Captcha } from '../../components/captcha/captcha';
 
 @Component({
   selector: 'app-checkout',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, Captcha],
   templateUrl: './checkout.html',
 })
 export class Checkout {
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private ventaService = inject(VentaService);
 
   carritoService = inject(CarritoService);
   authService = inject(AuthService);
   productoService = inject(ProductoService);
   notificacionService = inject(NotificacionService);
 
-  procesando = signal(false);
+  private captcha = viewChild(Captcha);
 
-  // Formulario con sub-grupos: envio y pago.
+  procesando = signal(false);
+  captchaToken = signal('');
+  errorPago = signal('');
+
+  // Con Stripe Checkout el formulario se queda solo con el envio: la
+  // tarjeta se teclea en la pagina de Stripe y nunca pasa por aqui.
   checkoutForm = this.fb.group(
     {
       envio: this.fb.group({
@@ -55,27 +42,15 @@ export class Checkout {
         usarOtraDireccion: [false],
         direccionAlternativa: [{ value: '', disabled: true }, Validators.required],
       }),
-      pago: this.fb.group(
-        {
-          numeroTarjeta: ['', [Validators.required, Validators.pattern(/^\d{16}$/)]],
-          cvv: ['', [Validators.required, Validators.pattern(/^\d{3}$/)]],
-          montoIngresado: ['', Validators.required],
-        },
-        { validators: montoCoincideConTotal(() => this.carritoService.total()) },
-      ),
     },
     {
-      // Antes de dejar confirmar, el servidor dice si aun hay stock.
+      // Antes de mandar a pagar, el servidor dice si aun hay stock.
       asyncValidators: [stockDisponibleValidator(this.productoService, this.carritoService)],
     },
   );
 
   get envio() {
     return this.checkoutForm.get('envio');
-  }
-
-  get pago() {
-    return this.checkoutForm.get('pago');
   }
 
   get nombreCompleto() {
@@ -88,18 +63,6 @@ export class Checkout {
 
   get direccionAlternativa() {
     return this.checkoutForm.get('envio.direccionAlternativa');
-  }
-
-  get numeroTarjeta() {
-    return this.checkoutForm.get('pago.numeroTarjeta');
-  }
-
-  get cvv() {
-    return this.checkoutForm.get('pago.cvv');
-  }
-
-  get montoIngresado() {
-    return this.checkoutForm.get('pago.montoIngresado');
   }
 
   constructor() {
@@ -116,7 +79,20 @@ export class Checkout {
     });
   }
 
-  confirmarPedido() {
+  alGenerarToken(token: string) {
+    this.captchaToken.set(token);
+
+    if (token) {
+      this.errorPago.set('');
+    }
+  }
+
+  alFallarCaptcha() {
+    this.captchaToken.set('');
+    this.errorPago.set('El captcha no cargo bien, recarga la pagina.');
+  }
+
+  pagar() {
     if (this.checkoutForm.pending) {
       this.notificacionService.show('Espera, estamos verificando el stock', 'info');
       return;
@@ -124,16 +100,7 @@ export class Checkout {
 
     if (this.checkoutForm.invalid) {
       this.checkoutForm.markAllAsTouched();
-
-      if (this.checkoutForm.hasError('stockInsuficiente')) {
-        this.notificacionService.show(
-          'Ya no hay stock de: ' + this.checkoutForm.getError('stockInsuficiente'),
-          'error',
-        );
-      } else {
-        this.notificacionService.show('Revisa los datos del formulario', 'error');
-      }
-
+      this.notificacionService.show('Revisa los datos de envio', 'error');
       return;
     }
 
@@ -142,15 +109,45 @@ export class Checkout {
       return;
     }
 
+    if (!this.captchaToken()) {
+      this.notificacionService.show('Resuelve el captcha para continuar', 'error');
+      return;
+    }
+
+    const datos = this.envio!.value as {
+      nombreCompleto: string;
+      direccion: string;
+      usarOtraDireccion: boolean;
+      direccionAlternativa: string;
+    };
+
     this.procesando.set(true);
+    this.errorPago.set('');
 
-    this.notificacionService.show('Pedido confirmado, gracias por tu compra', 'exito');
-    this.carritoService.vaciar();
-    this.checkoutForm.reset({ envio: { ciudad: 'Lima', usarOtraDireccion: false } });
-    this.direccionAlternativa?.disable();
-    this.procesando.set(false);
-
-    this.router.navigate(['/']);
+    this.ventaService
+      .crearCheckout(
+        this.carritoService.items(),
+        {
+          nombreCompleto: datos.nombreCompleto,
+          // Si marcaron la casilla se envia a la otra direccion.
+          direccion: datos.usarOtraDireccion ? datos.direccionAlternativa : datos.direccion,
+        },
+        this.captchaToken(),
+      )
+      .subscribe({
+        // Stripe Checkout es una pagina externa, no una ruta de Angular:
+        // por eso se sale con window.location y no con el Router.
+        next: ({ url }) => {
+          window.location.href = url;
+        },
+        error: (error: HttpErrorResponse) => {
+          this.procesando.set(false);
+          // El token de Turnstile se usa una sola vez: si el pago no
+          // salio hay que pedir uno nuevo.
+          this.captcha()?.reiniciar();
+          this.errorPago.set(error.error?.error ?? 'No se pudo iniciar el pago, intenta de nuevo.');
+        },
+      });
   }
 
   volverAlCarrito() {

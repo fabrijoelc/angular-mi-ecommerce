@@ -1,0 +1,10 @@
+project_id = "ldegqztunrgpjtakngzs"
+
+[functions.verificar-captcha]
+verify_jwt = false
+
+[functions.crear-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

@@ -1,3 +1,4 @@
+// Valores de produccion. Son los mismos: todos son datos publicos.
 const PROYECTO = 'https://ldegqztunrgpjtakngzs.supabase.co';
 
 export const environment = {

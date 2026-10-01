@@ -1,0 +1,112 @@
+<div class="max-w-2xl mx-auto px-6 py-10">
+  @if (!sessionId()) {
+    <div class="bg-white rounded-2xl shadow-md p-8 text-center">
+      <p class="text-4xl">🤔</p>
+      <h2 class="mt-3 text-xl font-bold text-slate-800">No encontramos la compra</h2>
+      <p class="mt-2 text-sm text-slate-500">
+        Esta pagina se abre sola al terminar un pago. Revisa tus compras para ver el estado.
+      </p>
+      <a
+        routerLink="/mis-compras"
+        class="mt-6 inline-block px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-700"
+      >
+        Ver mis compras
+      </a>
+    </div>
+  } @else if (esperando()) {
+    <!-- Estado 1: el webhook todavia no confirmo el pago -->
+    <div class="bg-white rounded-2xl shadow-md p-8 text-center">
+      <span
+        class="inline-block w-10 h-10 rounded-full border-4 border-slate-200 border-t-emerald-500 animate-spin"
+      ></span>
+      <h2 class="mt-4 text-xl font-bold text-slate-800">Estamos confirmando tu pago</h2>
+      <p class="mt-2 text-sm text-slate-500">Esto suele tardar unos segundos, no cierres la pagina.</p>
+
+      <div class="mt-6 space-y-2">
+        <div class="h-4 rounded bg-slate-100 animate-pulse"></div>
+        <div class="h-4 w-2/3 mx-auto rounded bg-slate-100 animate-pulse"></div>
+      </div>
+
+      @if (demorado()) {
+        <p class="mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Esta tardando mas de lo normal. Si ya pagaste, tu compra se registrara igual: puedes
+          revisarla en <a routerLink="/mis-compras" class="underline font-medium">Mis compras</a>.
+        </p>
+      }
+    </div>
+  } @else if (confirmada()) {
+    <!-- Estado 2: pago confirmado, con el detalle de la compra -->
+    <div class="bg-white rounded-2xl shadow-md p-8">
+      <div class="text-center">
+        <p class="text-4xl">✅</p>
+        <h2 class="mt-3 text-2xl font-bold text-slate-800">Pago confirmado</h2>
+        <p class="mt-1 text-sm text-slate-500">Gracias por tu compra, {{ venta()!.nombre_completo }}.</p>
+
+        <span
+          class="mt-3 inline-block px-3 py-1 rounded-full text-xs font-medium"
+          [class]="(venta()!.estado | estadoVenta).clase"
+        >
+          {{ (venta()!.estado | estadoVenta).texto }}
+        </span>
+      </div>
+
+      <div class="mt-8 space-y-3">
+        @for (linea of venta()!.detalle_venta; track linea.id) {
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            @if (linea.producto?.imagen) {
+              <img
+                [src]="linea.producto!.imagen"
+                [alt]="linea.producto!.nombre"
+                class="w-12 h-12 object-contain bg-slate-50 rounded-lg"
+              />
+            }
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-slate-800 truncate">{{ linea.producto?.nombre || 'Jersey' }}</p>
+              <p class="text-xs text-slate-500">
+                {{ linea.cantidad }} x S/ {{ linea.precio_unitario }}
+              </p>
+            </div>
+            <p class="text-sm font-medium text-slate-800">
+              S/ {{ subtotalLinea(linea.cantidad, linea.precio_unitario).toFixed(2) }}
+            </p>
+          </div>
+        }
+      </div>
+
+      <div class="mt-4 flex justify-between items-center">
+        <span class="text-slate-600">Total pagado</span>
+        <span class="text-xl font-bold text-emerald-600">S/ {{ venta()!.total }}</span>
+      </div>
+
+      <p class="mt-4 text-xs text-slate-500">Se envia a: {{ venta()!.direccion }}</p>
+
+      <div class="mt-8 flex flex-wrap gap-3 justify-center">
+        <a
+          routerLink="/mis-compras"
+          class="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-700"
+        >
+          Ver mis compras
+        </a>
+        <a
+          routerLink="/catalogo"
+          class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
+        >
+          Seguir comprando
+        </a>
+      </div>
+    </div>
+  } @else {
+    <!-- Estado 3: la sesion de pago expiro -->
+    <div class="bg-white rounded-2xl shadow-md p-8 text-center">
+      <p class="text-4xl">⌛</p>
+      <h2 class="mt-3 text-xl font-bold text-slate-800">La compra quedo cancelada</h2>
+      <p class="mt-2 text-sm text-slate-500">La sesion de pago expiro y no se cobro nada.</p>
+      <a
+        routerLink="/carrito"
+        class="mt-6 inline-block px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-700"
+      >
+        Volver al carrito
+      </a>
+    </div>
+  }
+</div>

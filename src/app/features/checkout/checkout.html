@@ -9,7 +9,7 @@
   </p>
 
   <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
-    <form class="bg-white rounded-2xl shadow-md p-6" [formGroup]="checkoutForm" (ngSubmit)="confirmarPedido()">
+    <form class="bg-white rounded-2xl shadow-md p-6" [formGroup]="checkoutForm" (ngSubmit)="pagar()">
       <!-- ================= Sub-grupo: envio ================= -->
       <div formGroupName="envio">
         <h3 class="font-semibold text-slate-800 mb-4">Datos de envio</h3>
@@ -80,66 +80,14 @@
         }
       </div>
 
-      <!-- ================= Sub-grupo: pago ================= -->
-      <div formGroupName="pago" class="mt-8 pt-6 border-t border-slate-200">
-        <h3 class="font-semibold text-slate-800 mb-4">Datos de pago</h3>
+      <!-- ================= Captcha ================= -->
+      <div class="mt-8 pt-6 border-t border-slate-200">
+        <h3 class="font-semibold text-slate-800">Verificacion</h3>
+        <p class="mt-1 mb-3 text-xs text-slate-500">
+          Marca la casilla para confirmar que no eres un robot.
+        </p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_7rem] gap-4">
-          <label class="block text-sm text-slate-600">
-            Numero de tarjeta
-            <input
-              type="text"
-              formControlName="numeroTarjeta"
-              inputmode="numeric"
-              maxlength="16"
-              placeholder="16 digitos"
-              class="mt-1 w-full rounded-lg border px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-              [class.border-red-400]="numeroTarjeta?.invalid && numeroTarjeta?.touched"
-              [class.border-slate-200]="!(numeroTarjeta?.invalid && numeroTarjeta?.touched)"
-            />
-          </label>
-
-          <label class="block text-sm text-slate-600">
-            CVV
-            <input
-              type="text"
-              formControlName="cvv"
-              inputmode="numeric"
-              maxlength="3"
-              placeholder="123"
-              class="mt-1 w-full rounded-lg border px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-              [class.border-red-400]="cvv?.invalid && cvv?.touched"
-              [class.border-slate-200]="!(cvv?.invalid && cvv?.touched)"
-            />
-          </label>
-        </div>
-
-        @if (numeroTarjeta?.invalid && numeroTarjeta?.touched) {
-          <p class="mt-1 text-xs text-red-600">La tarjeta debe tener 16 digitos.</p>
-        }
-        @if (cvv?.invalid && cvv?.touched) {
-          <p class="mt-1 text-xs text-red-600">El CVV debe tener 3 digitos.</p>
-        }
-
-        <label class="mt-4 block text-sm text-slate-600">
-          Monto a pagar (debe coincidir con el total)
-          <input
-            type="number"
-            step="0.01"
-            formControlName="montoIngresado"
-            [placeholder]="carritoService.total().toFixed(2)"
-            class="mt-1 w-full rounded-lg border px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-            [class.border-red-400]="pago?.hasError('montoNoCoincide') && montoIngresado?.touched"
-            [class.border-slate-200]="!(pago?.hasError('montoNoCoincide') && montoIngresado?.touched)"
-          />
-        </label>
-        @if (montoIngresado?.invalid && montoIngresado?.touched) {
-          <p class="mt-1 text-xs text-red-600">Escribe el monto.</p>
-        } @else if (pago?.hasError('montoNoCoincide') && montoIngresado?.touched) {
-          <p class="mt-1 text-xs text-red-600">
-            El monto no coincide con el total (S/ {{ carritoService.total().toFixed(2) }}).
-          </p>
-        }
+        <app-captcha (tokenGenerado)="alGenerarToken($event)" (fallo)="alFallarCaptcha()" />
       </div>
 
       <!-- Estado PENDING mientras corre la validacion asincrona de stock -->
@@ -156,20 +104,27 @@
         </p>
       }
 
+      <!-- Mensaje que devuelve la Edge Function: captcha, stock o sesion -->
+      @if (errorPago()) {
+        <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ errorPago() }}</p>
+      }
+
       <button
         type="submit"
         class="mt-6 w-full py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
-        [disabled]="procesando() || checkoutForm.pending"
+        [disabled]="checkoutForm.invalid || checkoutForm.pending || !captchaToken() || procesando()"
       >
-        @if (checkoutForm.pending) {
+        @if (procesando()) {
+          Redirigiendo a Stripe...
+        } @else if (checkoutForm.pending) {
           Verificando stock...
         } @else {
-          Confirmar pedido
+          Pagar con Stripe
         }
       </button>
 
       <p class="mt-3 text-center text-xs text-slate-400">
-        Estado del formulario: {{ checkoutForm.status }}
+        El pago se hace en la pagina de Stripe. Estado del formulario: {{ checkoutForm.status }}
       </p>
     </form>
 
@@ -210,6 +165,10 @@
           <span class="font-bold text-emerald-600 text-lg">S/ {{ carritoService.total().toFixed(2) }}</span>
         </div>
       </div>
+
+      <p class="mt-4 text-xs text-slate-400">
+        El total lo vuelve a calcular el servidor con los precios reales antes de cobrar.
+      </p>
     </aside>
   </div>
 </div>

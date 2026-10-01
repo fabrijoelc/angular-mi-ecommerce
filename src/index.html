@@ -6,6 +6,14 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <!-- Captcha de Cloudflare. render=explicit deja que el componente
+         decida donde y cuando dibujar el widget. -->
+    <script
+      src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+      async
+      defer
+    ></script>
   </head>
   <body>
     <app-root></app-root>
