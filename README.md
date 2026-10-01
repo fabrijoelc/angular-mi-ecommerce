@@ -5,6 +5,14 @@ curso de Angular de Tecsup.
 
 Autor: Fabrizio Allcca
 
+## Sitio publicado
+
+https://angular-mi-ecommerce.vercel.app/
+
+El frontend se despliega desde `main` en Vercel. La configuración de build
+publica `dist/mi-ecommerce/browser`; las rutas de Angular usan la reescritura
+definida en `vercel.json`.
+
 ## Que hace
 
 - Catalogo de 20 jerseys con busqueda por nombre, filtro por equipo y
